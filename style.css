@@ -1,0 +1,124 @@
+/* style.css */
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: 'Inter', 'Roboto', sans-serif;
+    background-color: #f0f0f0;
+}
+
+#game-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.ui-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    color: #fff;
+    pointer-events: none; /* 默认不响应点击，除非是按钮 */
+    box-sizing: border-box;
+}
+
+#ui-hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    font-size: 1.5em;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+}
+
+#timer {
+    font-size: 1.8em;
+}
+
+#lives span {
+    margin-left: 5px;
+}
+
+/* 覆盖层样式 (菜单, 暂停, 结束) */
+.overlay {
+    display: none; /* 默认隐藏 */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(25, 42, 86, 0.8); /* 主色调蓝色 */
+    backdrop-filter: blur(5px);
+    pointer-events: all;
+}
+
+.overlay.active {
+    display: flex;
+}
+
+.overlay h1 {
+    font-size: 3em;
+    margin-bottom: 0.2em;
+}
+
+.overlay h2 {
+    font-size: 2.5em;
+    margin-bottom: 0.5em;
+}
+
+.overlay p {
+    font-size: 1.2em;
+    max-width: 80%;
+    text-align: center;
+    margin-bottom: 2em;
+}
+
+.overlay button {
+    padding: 15px 40px;
+    font-size: 1.2em;
+    font-weight: bold;
+    border: none;
+    border-radius: 50px;
+    background-color: #ff6b6b; /* 辅助色橙色/红色 */
+    color: white;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+    margin-top: 10px;
+}
+
+.overlay button:active {
+    transform: scale(0.95);
+    box-shadow: 0 0 10px #ff6b6b;
+}
+
+.high-score {
+    margin-top: 2em;
+    font-size: 1.1em;
+    opacity: 0.8;
+}
+
+/* 游戏内控制按钮 */
+#game-controls {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none; /* 游戏开始后显示 */
+    pointer-events: all;
+}
+
+#pause-button {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5em;
+    border: 3px solid white;
+    border-radius: 50%;
+    background-color: rgba(0,0,0,0.3);
+    color: white;
+    cursor: pointer;
+}
+#pause-button:active {
+    background-color: rgba(255,255,255,0.3);
+}
