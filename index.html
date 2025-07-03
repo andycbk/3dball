@@ -3,12 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
-    <title>3D滚动球</title>
-    <link rel="stylesheet" href="style.css">
+    <title>3D滚动球 v1.0</title>
     
-    <!-- 核心库: 使用传统的 script 标签在 head 中引入 -->
+    <!-- 核心库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.19.0/dist/cannon-es.js"></script>
+
+    <!-- CSS 样式 -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #1a2a52;
+        }
+
+        #game-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ui-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            color: #fff;
+            pointer-events: none;
+            box-sizing: border-box;
+            display: none;
+        }
+
+        #ui-hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+        }
+
+        #timer {
+            font-size: 1.8em;
+        }
+
+        #lives span {
+            margin-left: 5px;
+            font-size: 1.2em;
+        }
+
+        .overlay {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(25, 42, 86, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            pointer-events: all;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            text-align: center;
+        }
+
+        .overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+
+        .overlay h1 {
+            font-size: 3.5em;
+            margin-bottom: 0.2em;
+            color: #ffc107;
+        }
+
+        .overlay h2 {
+            font-size: 3em;
+            margin-bottom: 0.5em;
+        }
+
+        .overlay p {
+            font-size: 1.1em;
+            max-width: 85%;
+            line-height: 1.6;
+            margin-bottom: 1.5em;
+        }
+
+        .overlay button {
+            padding: 18px 45px;
+            font-size: 1.2em;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(145deg, #ff8a00, #e52e71);
+            color: white;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.2s ease;
+            margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .overlay button:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .high-score {
+            margin-top: 2em;
+            font-size: 1.1em;
+            opacity: 0.8;
+        }
+        
+        .version-text {
+            position: absolute;
+            bottom: 20px;
+            font-size: 0.9em;
+            opacity: 0.6;
+        }
+
+        #game-controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            pointer-events: all;
+        }
+
+        #pause-button {
+            width: 60px;
+            height: 60px;
+            font-size: 1.5em;
+            border: 3px solid white;
+            border-radius: 50%;
+            background-color: rgba(0,0,0,0.3);
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #pause-button:active {
+            background-color: rgba(255,255,255,0.3);
+        }
+    </style>
 </head>
 <body>
     <!-- 3D渲染画布 -->
@@ -31,6 +175,7 @@
         </p>
         <button id="start-button">开始游戏</button>
         <div class="high-score">最高分: <span id="high-score">0</span></div>
+        <div class="version-text">版本 1.0</div>
     </div>
     
     <!-- UI层: 暂停界面 -->
@@ -59,7 +204,358 @@
       <button id="pause-button">❚❚</button>
     </div>
 
-    <!-- 游戏主逻辑: 在 body 的最后引入 main.js -->
-    <script src="./main.js"></script>
+    <!-- JavaScript 游戏逻辑 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                new Game();
+            } catch (error) {
+                console.error("无法初始化游戏:", error);
+                alert("抱歉，游戏无法初始化。\n错误详情: " + error.message);
+            }
+        });
+
+        class Game {
+            constructor() {
+                this.initEngine();
+                this.initUI();
+                this.addEventListeners();
+                this.showMenu();
+            }
+
+            initEngine() {
+                this.gameState = 'MENU';
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                document.getElementById('game-canvas').appendChild(this.renderer.domElement);
+
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x334d7c);
+                this.scene.fog = new THREE.Fog(0x334d7c, 30, 60);
+
+                this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.camera.position.set(0, 10, 15);
+
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+                this.scene.add(ambientLight);
+                this.light = new THREE.DirectionalLight(0xffffff, 0.8);
+                this.light.position.set(10, 20, 5);
+                this.light.castShadow = true;
+                this.light.shadow.mapSize.width = 2048;
+                this.light.shadow.mapSize.height = 2048;
+                this.scene.add(this.light);
+
+                this.physicsWorld = new CANNON.World({ gravity: new CANNON.Vec3(0, -30, 0) });
+                this.clock = new THREE.Clock();
+                this.dynamicObjects = [];
+            }
+            
+            startGame() {
+                try {
+                    this.resetGame();
+                    this.initLevel();
+
+                    this.gameState = 'PLAYING';
+                    this.updateUI();
+
+                    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        DeviceOrientationEvent.requestPermission()
+                            .then(permissionState => {
+                                if (permissionState === 'granted') {
+                                    window.addEventListener('deviceorientation', this.handleOrientation);
+                                }
+                            }).catch(console.error);
+                    } else {
+                        window.addEventListener('deviceorientation', this.handleOrientation);
+                    }
+
+                    this.timerInterval = setInterval(() => this.updateTimer(), 1000);
+                    this.animate();
+                } catch (error) {
+                    console.error("启动游戏时出错:", error);
+                    alert("启动游戏时发生错误，请刷新页面重试。\n错误: " + error.message);
+                    this.showMenu();
+                }
+            }
+            
+            resetGame() {
+                // 清理所有动态创建的物体
+                this.dynamicObjects.forEach(obj => {
+                    if (obj.mesh) this.scene.remove(obj.mesh);
+                    if (obj.body) this.physicsWorld.removeBody(obj.body);
+                });
+                this.dynamicObjects = [];
+
+                if(this.timerInterval) clearInterval(this.timerInterval);
+                if(this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
+
+                this.score = 0;
+                this.lives = 3;
+                this.timeLeft = 60;
+                this.gyro = { beta: 0, gamma: 0 };
+                this.keysPressed = {};
+                
+                this.handleOrientation = this.handleOrientation.bind(this);
+                window.removeEventListener('deviceorientation', this.handleOrientation);
+            }
+            
+            initLevel() {
+                const platformMaterial = new CANNON.Material('platform');
+                const levelLayout = [
+                    { size: [10, 1, 10], position: [0, 0, 0] }, { size: [10, 1, 4], position: [0, 0, -7] },
+                    { size: [4, 1, 10], position: [7, 0, -12] }, { size: [15, 1, 4], position: [15, -2, -12], isSlanted: true },
+                    { size: [4, 1, 10], position: [23, -4, -12] }, { size: [10, 1, 4], position: [23, -4, -5] },
+                ];
+
+                levelLayout.forEach(data => {
+                    const mesh = new THREE.Mesh( new THREE.BoxGeometry(data.size[0], data.size[1], data.size[2]), new THREE.MeshStandardMaterial({ color: 0x4466aa, roughness: 0.8 }) );
+                    mesh.position.set(data.position[0], data.position[1], data.position[2]);
+                    mesh.receiveShadow = true;
+                    this.scene.add(mesh);
+                    const body = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(data.size[0]/2, data.size[1]/2, data.size[2]/2)), position: new CANNON.Vec3(data.position[0], data.position[1], data.position[2]), material: platformMaterial });
+                    if(data.isSlanted) { body.quaternion.setFromEuler(-Math.PI / 16, 0, 0); mesh.quaternion.copy(body.quaternion); }
+                    this.physicsWorld.addBody(body);
+                    this.dynamicObjects.push({mesh, body});
+                });
+                
+                this.createBall(platformMaterial);
+                this.createStars();
+                this.createFinishZone();
+            }
+
+            createBall(platformMaterial) {
+                const ballMaterial = new CANNON.Material('ball');
+                this.ballMesh = new THREE.Mesh( new THREE.SphereGeometry(0.5, 32, 32), new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.3, roughness: 0.4 }) );
+                this.ballMesh.castShadow = true;
+                this.scene.add(this.ballMesh);
+
+                this.ballBody = new CANNON.Body({ mass: 1.5, shape: new CANNON.Sphere(0.5), position: new CANNON.Vec3(0, 2, 0), material: ballMaterial });
+                this.ballBody.addEventListener('collide', (event) => this.handleCollision(event));
+                this.physicsWorld.addBody(this.ballBody);
+                this.dynamicObjects.push({mesh: this.ballMesh, body: this.ballBody});
+                
+                const ballPlatformContact = new CANNON.ContactMaterial(ballMaterial, platformMaterial, { friction: 0.1, restitution: 0.3 });
+                this.physicsWorld.addContactMaterial(ballPlatformContact);
+            }
+            
+            createStars() {
+                const starGeo = new THREE.TorusGeometry(0.4, 0.15, 8, 5);
+                const starMat = new THREE.MeshStandardMaterial({ color: 0xffe066, emissive: 0xffc107, emissiveIntensity: 0.6 });
+                const starPositions = [ [0, 1.5, -7], [7, 1.5, -9], [7, 1.5, -15], [15, 0.5, -12], [23, -2.5, -15], [23, -2.5, -9] ];
+
+                starPositions.forEach(pos => {
+                    const mesh = new THREE.Mesh(starGeo, starMat);
+                    mesh.position.set(pos[0], pos[1], pos[2]);
+                    mesh.castShadow = true;
+                    this.scene.add(mesh);
+                    const body = new CANNON.Body({ isTrigger: true, mass: 0, shape: new CANNON.Sphere(0.7), position: new CANNON.Vec3(pos[0], pos[1], pos[2]) });
+                    body.isStar = true; body.starMesh = mesh;
+                    this.physicsWorld.addBody(body);
+                    this.dynamicObjects.push({mesh, body});
+                });
+            }
+
+            createFinishZone() {
+                const finishMesh = new THREE.Mesh( new THREE.CylinderGeometry(2, 2, 0.2, 32), new THREE.MeshStandardMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5 }) );
+                finishMesh.position.set(23, -3.9, -5);
+                this.scene.add(finishMesh);
+
+                const finishBody = new CANNON.Body({ isTrigger: true, mass: 0, shape: new CANNON.Cylinder(2, 2, 0.2, 12), position: new CANNON.Vec3(23, -3.9, -5) });
+                finishBody.isFinish = true;
+                this.physicsWorld.addBody(finishBody);
+                this.dynamicObjects.push({mesh: finishMesh, body: finishBody});
+            }
+
+            animate() {
+                this.animationFrameId = requestAnimationFrame(() => this.animate());
+                
+                if (this.gameState === 'PLAYING') {
+                    const deltaTime = Math.min(this.clock.getDelta(), 0.1);
+                    this.physicsWorld.step(1 / 60, deltaTime, 3);
+                    
+                    this.applyForces();
+
+                    this.ballMesh.position.copy(this.ballBody.position);
+                    this.ballMesh.quaternion.copy(this.ballBody.quaternion);
+                    
+                    this.dynamicObjects.forEach(obj => {
+                        if (obj.body.isStar && obj.mesh) obj.mesh.rotation.y += 0.02;
+                    });
+
+                    this.updateCamera();
+                    this.checkFall();
+                }
+                
+                this.renderer.render(this.scene, this.camera);
+            }
+
+            applyForces() {
+                const forceMagnitude = 60;
+                let force = new CANNON.Vec3( this.gyro.gamma / 90 * forceMagnitude, 0, this.gyro.beta / 90 * forceMagnitude );
+                
+                if (this.keysPressed.w || this.keysPressed.ArrowUp) force.z = -forceMagnitude;
+                if (this.keysPressed.s || this.keysPressed.ArrowDown) force.z = forceMagnitude;
+                if (this.keysPressed.a || this.keysPressed.ArrowLeft) force.x = -forceMagnitude;
+                if (this.keysPressed.d || this.keysPressed.ArrowRight) force.x = forceMagnitude;
+                
+                if (force.x !== 0 || force.z !== 0) {
+                    this.ballBody.applyForce(force, this.ballBody.position);
+                }
+            }
+
+            updateCamera() {
+                const offset = new THREE.Vector3(0, 8, 10);
+                const targetPosition = this.ballMesh.position.clone().add(offset);
+                this.camera.position.lerp(targetPosition, 0.05);
+                this.camera.lookAt(this.ballMesh.position);
+                this.light.position.copy(this.camera.position).add(new THREE.Vector3(-5, 5, -5));
+                this.light.target = this.ballMesh;
+            }
+
+            handleCollision(event) {
+                const body = event.body;
+                if (body.isStar && !body.isCollected) {
+                    body.isCollected = true;
+                    this.score += 10;
+                    body.starMesh.visible = false;
+                    this.updateUI();
+                }
+                if (body.isFinish) this.winGame();
+            }
+
+            checkFall() {
+                if (this.ballBody.position.y < -20) {
+                    this.lives--;
+                    this.updateUI();
+                    if (this.lives <= 0) this.gameOver();
+                    else this.resetBallPosition();
+                }
+            }
+
+            resetBallPosition() {
+                this.ballBody.velocity.set(0, 0, 0);
+                this.ballBody.angularVelocity.set(0, 0, 0);
+                this.ballBody.position.set(0, 2, 0);
+            }
+
+            updateTimer() {
+                if(this.gameState !== 'PLAYING') return;
+                this.timeLeft--;
+                this.updateUI();
+                if (this.timeLeft <= 0) this.gameOver();
+            }
+            
+            gameOver() {
+                if (this.gameState !== 'PLAYING') return;
+                this.gameState = 'GAMEOVER';
+                clearInterval(this.timerInterval);
+                this.updateUI();
+            }
+
+            winGame() {
+                if (this.gameState !== 'PLAYING') return;
+                this.gameState = 'WIN';
+                clearInterval(this.timerInterval);
+                this.score += this.timeLeft * 5;
+                this.updateUI();
+            }
+
+            pauseGame() {
+                if(this.gameState !== 'PLAYING') return;
+                this.gameState = 'PAUSED';
+                this.updateUI();
+            }
+
+            resumeGame() {
+                if(this.gameState !== 'PAUSED') return;
+                this.gameState = 'PLAYING';
+                this.updateUI();
+            }
+            
+            initUI() {
+                this.ui = {
+                    hud: document.getElementById('ui-hud'), menu: document.getElementById('ui-menu'),
+                    pause: document.getElementById('ui-pause'), gameover: document.getElementById('ui-gameover'),
+                    win: document.getElementById('ui-win'), score: document.getElementById('score'),
+                    timer: document.getElementById('timer'), lives: document.getElementById('lives'),
+                    finalScore: document.getElementById('final-score'), winScore: document.getElementById('win-score'),
+                    highScore: document.getElementById('high-score'),
+                };
+                this.highScore = localStorage.getItem('highScore') || 0;
+                this.ui.highScore.textContent = this.highScore;
+            }
+            
+            updateUI() {
+                // Hide all layers and controls by default
+                Object.values(this.ui).forEach(el => el.classList?.remove('active'));
+                this.ui.hud.style.display = 'none';
+                document.getElementById('game-controls').style.display = 'none';
+
+                // Show the correct layer based on gameState
+                switch(this.gameState) {
+                    case 'MENU':
+                        this.ui.menu.classList.add('active');
+                        break;
+                    case 'PLAYING':
+                    case 'PAUSED':
+                        this.ui.hud.style.display = 'flex';
+                        document.getElementById('game-controls').style.display = 'block';
+                        this.ui.score.textContent = `得分: ${this.score}`;
+                        const minutes = Math.floor(this.timeLeft / 60).toString().padStart(2, '0');
+                        const seconds = (this.timeLeft % 60).toString().padStart(2, '0');
+                        this.ui.timer.textContent = `${minutes}:${seconds}`;
+                        this.ui.lives.innerHTML = '❤️'.repeat(this.lives);
+                        if (this.gameState === 'PAUSED') this.ui.pause.classList.add('active');
+                        break;
+                    case 'GAMEOVER':
+                        this.ui.gameover.classList.add('active');
+                        this.ui.finalScore.textContent = this.score;
+                        this.updateHighScore();
+                        break;
+                    case 'WIN':
+                        this.ui.win.classList.add('active');
+                        this.ui.winScore.textContent = this.score;
+                        this.updateHighScore();
+                        break;
+                }
+            }
+            
+            showMenu() { this.gameState = 'MENU'; this.updateUI(); }
+            
+            updateHighScore() {
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('highScore', this.highScore);
+                    this.ui.highScore.textContent = this.highScore;
+                }
+            }
+
+            addEventListeners() {
+                document.getElementById('start-button').addEventListener('click', () => this.startGame());
+                document.getElementById('pause-button').addEventListener('click', () => this.pauseGame());
+                document.getElementById('resume-button').addEventListener('click', () => this.resumeGame());
+                
+                [document.getElementById('restart-button-pause'), document.getElementById('restart-button-gameover'), document.getElementById('play-next-level-button')]
+                .forEach(btn => btn.addEventListener('click', () => this.startGame()));
+                
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+                
+                window.addEventListener('keydown', (event) => { this.keysPressed[event.key.toLowerCase()] = true; });
+                window.addEventListener('keyup', (event) => { this.keysPressed[event.key.toLowerCase()] = false; });
+            }
+            
+            handleOrientation(event) {
+                this.gyro.beta = event.beta ? Math.max(-90, Math.min(90, event.beta)) : 0;
+                this.gyro.gamma = event.gamma ? Math.max(-90, Math.min(90, event.gamma)) : 0;
+            }
+        }
+    </script>
 </body>
 </html>
