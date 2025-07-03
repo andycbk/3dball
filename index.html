@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
-    <title>3D Rolling Ball</title>
+    <title>3D滚动球</title>
     <link rel="stylesheet" href="style.css">
-    <!-- 引入库 -->
+    
+    <!-- 核心库: 使用传统的 script 标签在 head 中引入 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.19.0/dist/cannon-es.js"></script>
 </head>
@@ -20,10 +21,14 @@
         <div id="lives"></div>
     </div>
 
-    <!-- UI层: 菜单界面 -->
+    <!-- UI层: 开始菜单界面 -->
     <div id="ui-menu" class="ui-layer overlay active">
         <h1>Cosmic Roll</h1>
-        <p>倾斜你的设备来移动小球。<br>在时间耗尽前，收集所有星星并到达终点！</p>
+        <p>
+            <b>电脑:</b> 使用 W/A/S/D 或方向键移动<br>
+            <b>手机:</b> 倾斜你的设备来移动小球<br><br>
+            在时间耗尽前，收集所有星星并到达终点！
+        </p>
         <button id="start-button">开始游戏</button>
         <div class="high-score">最高分: <span id="high-score">0</span></div>
     </div>
@@ -42,19 +47,19 @@
         <button id="restart-button-gameover">再玩一次</button>
     </div>
 
-    <!-- UI层: 胜利界面 (新增) -->
+    <!-- UI层: 胜利界面 -->
     <div id="ui-win" class="ui-layer overlay">
         <h2>闯关成功!</h2>
         <p>最终得分: <span id="win-score">0</span></p>
         <button id="play-next-level-button">再玩一次</button>
     </div>
     
-    <!-- 游戏内控制按钮 -->
+    <!-- 游戏内控制按钮 (用于手机端暂停) -->
     <div id="game-controls">
       <button id="pause-button">❚❚</button>
     </div>
 
-    <!-- 引入JS (确保路径正确) -->
-    <script type="module" src="./main.js"></script>
+    <!-- 游戏主逻辑: 在 body 的最后引入 main.js -->
+    <script src="./main.js"></script>
 </body>
 </html>
