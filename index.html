@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
-    <title>3D滚动球 v1.0</title>
+    <title>3D滚动球 v1.1</title>
     
     <!-- 核心库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -175,7 +175,7 @@
         </p>
         <button id="start-button">开始游戏</button>
         <div class="high-score">最高分: <span id="high-score">0</span></div>
-        <div class="version-text">版本 1.0</div>
+        <div class="version-text">版本 1.1</div>
     </div>
     
     <!-- UI层: 暂停界面 -->
@@ -206,7 +206,11 @@
 
     <!-- JavaScript 游戏逻辑 -->
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        // ===================================================================================
+        // 关键修复：将 DOMContentLoaded 改为 window.onload
+        // 这将确保所有外部脚本 (Three.js, Cannon.js) 都加载完毕后，再初始化游戏
+        // ===================================================================================
+        window.addEventListener('load', () => {
             try {
                 new Game();
             } catch (error) {
@@ -282,7 +286,6 @@
             }
             
             resetGame() {
-                // 清理所有动态创建的物体
                 this.dynamicObjects.forEach(obj => {
                     if (obj.mesh) this.scene.remove(obj.mesh);
                     if (obj.body) this.physicsWorld.removeBody(obj.body);
@@ -382,7 +385,7 @@
                     this.ballMesh.quaternion.copy(this.ballBody.quaternion);
                     
                     this.dynamicObjects.forEach(obj => {
-                        if (obj.body.isStar && obj.mesh) obj.mesh.rotation.y += 0.02;
+                        if (obj.body.isStar && obj.mesh && obj.mesh.visible) obj.mesh.rotation.y += 0.02;
                     });
 
                     this.updateCamera();
@@ -396,10 +399,10 @@
                 const forceMagnitude = 60;
                 let force = new CANNON.Vec3( this.gyro.gamma / 90 * forceMagnitude, 0, this.gyro.beta / 90 * forceMagnitude );
                 
-                if (this.keysPressed.w || this.keysPressed.ArrowUp) force.z = -forceMagnitude;
-                if (this.keysPressed.s || this.keysPressed.ArrowDown) force.z = forceMagnitude;
-                if (this.keysPressed.a || this.keysPressed.ArrowLeft) force.x = -forceMagnitude;
-                if (this.keysPressed.d || this.keysPressed.ArrowRight) force.x = forceMagnitude;
+                if (this.keysPressed.w || this.keysPressed.arrowup) force.z = -forceMagnitude;
+                if (this.keysPressed.s || this.keysPressed.arrowdown) force.z = forceMagnitude;
+                if (this.keysPressed.a || this.keysPressed.arrowleft) force.x = -forceMagnitude;
+                if (this.keysPressed.d || this.keysPressed.arrowright) force.x = forceMagnitude;
                 
                 if (force.x !== 0 || force.z !== 0) {
                     this.ballBody.applyForce(force, this.ballBody.position);
@@ -489,12 +492,10 @@
             }
             
             updateUI() {
-                // Hide all layers and controls by default
                 Object.values(this.ui).forEach(el => el.classList?.remove('active'));
                 this.ui.hud.style.display = 'none';
                 document.getElementById('game-controls').style.display = 'none';
 
-                // Show the correct layer based on gameState
                 switch(this.gameState) {
                     case 'MENU':
                         this.ui.menu.classList.add('active');
